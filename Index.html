@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uranium Collector</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: #fff;
+            text-align: center;
+        }
+
+        canvas {
+            background-color: #333;
+            display: block;
+            margin: 0 auto;
+            border: 2px solid #555;
+        }
+
+        #score {
+            margin-top: 10px;
+            font-size: 24px;
+        }
+
+        #gameOver {
+            display: none;
+            font-size: 48px;
+            color: red;
+            margin-top: 20px;
+        }
+
+        .touch-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .button {
+            background-color: #555;
+            color: white;
+            padding: 20px;
+            margin: 0 10px;
+            font-size: 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .button:active {
+            background-color: #777;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Uranium Collector</h1>
+<canvas id="gameCanvas"></canvas>
+<div id="score">Score: 0</div>
+<div id="gameOver">Game Over</div>
+
+<div class="touch-controls">
+    <div class="button" id="leftBtn">← Left</div>
+    <div class="button" id="rightBtn">→ Right</div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Responsive canvas sizing
+    const canvasWidth = Math.min(window.innerWidth, 600);
+    const canvasHeight = (canvasWidth / 600) * 400;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    // Game variables
+    let player = { x: canvas.width / 2 - 25, y: canvas.height - 50, width: 50, height: 50, speed: 5 };
+    let uranium = { x: Math.random() * (canvas.width - 30), y: 0, width: 30, height: 30 };
+    let hazards = [];
+    let score = 0;
+    let gameOver = false;
+
+    let leftInterval, rightInterval;
+
+    // Function to draw the player (collector)
+    function drawPlayer() {
+        ctx.fillStyle = 'green';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    // Function to draw uranium piece
+    function drawUranium() {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(uranium.x, uranium.y, uranium.width, uranium.height);
+    }
+
+    // Function to draw hazards (radioactive waste)
+    function drawHazards() {
+        hazards.forEach(hazard => {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(hazard.x, hazard.y, hazard.width, hazard.height);
+        });
+    }
+
+    // Function to update game elements
+    function update() {
+        if (gameOver) return;
+
+        // Move uranium down
+        uranium.y += 3;
+        if (uranium.y > canvas.height) {
+            uranium.y = 0;
+            uranium.x = Math.random() * (canvas.width - 30);
+        }
+
+        // Move hazards down
+        hazards.forEach(hazard => {
+            hazard.y += 5;
+        });
+
+        // Check for collision with player
+        if (checkCollision(player, uranium)) {
+            score += 10;
+            uranium.y = 0;
+            uranium.x = Math.random() * (canvas.width - 30);
+
+            // Add more hazards as score increases
+            if (score % 50 === 0) {
+                hazards.push({ x: Math.random() * (canvas.width - 40), y: 0, width: 40, height: 40 });
+            }
+        }
+
+        // Check if player hits hazard
+        hazards.forEach(hazard => {
+            if (checkCollision(player, hazard)) {
+                gameOver = true;
+                document.getElementById('gameOver').style.display = 'block';
+            }
+        });
+
+        document.getElementById('score').innerText = 'Score: ' + score;
+    }
+
+    // Check for collision between two rectangles
+    function checkCollision(rect1, rect2) {
+        return !(rect1.x > rect2.x + rect2.width || 
+                 rect1.x + rect1.width < rect2.x || 
+                 rect1.y > rect2.y + rect2.height || 
+                 rect1.y + rect1.height < rect2.y);
+    }
+
+    // Function to handle keyboard inputs
+    document.addEventListener('keydown', function(event) {
+        if (gameOver) return;
+
+        if (event.key === 'ArrowLeft' && player.x > 0) {
+            player.x -= player.speed;
+        }
+        if (event.key === 'ArrowRight' && player.x < canvas.width - player.width) {
+            player.x += player.speed;
+        }
+    });
+
+    // Continuous movement for touch controls
+    function startMovingLeft() {
+        if (leftInterval) return;  // Prevent multiple intervals
+
+        leftInterval = setInterval(() => {
+            if (player.x > 0 && !gameOver) {
+                player.x -= player.speed;
+            }
+        }, 30);  // Move continuously every 30ms
+    }
+
+    function startMovingRight() {
+        if (rightInterval) return;  // Prevent multiple intervals
+
+        rightInterval = setInterval(() => {
+            if (player.x < canvas.width - player.width && !gameOver) {
+                player.x += player.speed;
+            }
+        }, 30);  // Move continuously every 30ms
+    }
+
+    function stopMovingLeft() {
+        clearInterval(leftInterval);
+        leftInterval = null;
+    }
+
+    function stopMovingRight() {
+        clearInterval(rightInterval);
+        rightInterval = null;
+    }
+
+    // Touch controls for mobile
+    document.getElementById('leftBtn').addEventListener('touchstart', startMovingLeft);
+    document.getElementById('leftBtn').addEventListener('touchend', stopMovingLeft);
+
+    document.getElementById('rightBtn').addEventListener('touchstart', startMovingRight);
+    document.getElementById('rightBtn').addEventListener('touchend', stopMovingRight);
+
+    // Function to draw and update the game
+    function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawPlayer();
+        drawUranium();
+        drawHazards();
+        update();
+
+        if (!gameOver) {
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    // Start the game
+    gameLoop();
+</script>
+
+</body>
+</html>
